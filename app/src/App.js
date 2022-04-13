@@ -1,5 +1,5 @@
 import "./App.css";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Connection, PublicKey, clusterApiUrl } from "@solana/web3.js";
 import { Program, Provider, web3 } from "@project-serum/anchor";
 import idl from "./idl.json";
@@ -32,31 +32,31 @@ function App() {
   const [input, setInput] = useState("");
   const wallet = useWallet();
 
-  async function getProvider() {
-    /* create the provider and return it to the caller */
-    /* network set to local network for now */
-    // const network = "http://127.0.0.1:8899";
-    const connection = new Connection(network, opts.preflightCommitment);
+  const connection = new Connection(network, opts.preflightCommitment);
+  const provider = new Provider(connection, wallet, opts.preflightCommitment);
 
-    const provider = new Provider(connection, wallet, opts.preflightCommitment);
-    connection.onAccountChange(
-      provider.wallet.publicKey,
-      (updatedAccountInfo, context) =>
-        console.log("Updated account info: ", updatedAccountInfo, context),
+  useEffect(() => {
+    connection.onProgramAccountChange(
+      programID,
+      (updatedProgramAccount, contextx) =>
+        console.log(
+          "onProgramAccountChange logs: ",
+          Buffer.from(updatedProgramAccount?.accountInfo?.data).toString(),
+          updatedProgramAccount?.accountId.toString(),
+          updatedProgramAccount?.accountInfo?.owner.toString(),
+          contextx
+        ),
       "confirmed"
     );
-
     connection.onLogs(
-      provider.wallet.publicKey,
+      programID,
       (updatedLogs, contextx) =>
         console.log("Updated logs: ", updatedLogs, contextx),
       "confirmed"
     );
-    return provider;
-  }
-
+  }, []);
   async function initialize() {
-    const provider = await getProvider();
+    // const provider = await getProvider();
     /* create the program interface combining the idl, program ID, and provider */
     const program = new Program(idl, programID, provider);
     console.log("program", program);
@@ -84,7 +84,7 @@ function App() {
 
   async function update() {
     if (!input) return;
-    const provider = await getProvider();
+    // const provider = await getProvider();
     const program = new Program(idl, programID, provider);
     await program.rpc.update(input, {
       accounts: {
